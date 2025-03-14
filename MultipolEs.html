@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Tensor Visualization</title>
+    <script src="https://unpkg.com/core-js-bundle@3.30.2/index.js"></script>
+    <!-- MathJax for LaTeX rendering -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .equation-container {
+            width: 100%;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+        .matrix-container {
+            width: 100%; /* Same width for all matrices */
+            text-align: center; /* Center the content */
+            margin: 0 auto; /* Center the container */
+        }
+        /* Make sure the MathJax/LaTeX rendering is centered */
+        .MathJax_Display {
+            text-align: center !important;
+        }
+        .main-container {
+            display: flex;
+            width: 100%;
+            min-height: 600px;
+            align-items: flex-start; /* Prevents automatic vertical stretching */
+        }
+        .controls-column {
+            width: 20%;
+            margin-right: 10px;
+        }
+        .sliders-container {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            width: 100%;
+        }
+        .sliders-column {
+            width: 50%;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .plot-column {
+            width: 50%;
+        }
+        .matrix-column {
+            width: 30%;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 8px;
+            margin-left: 10px;
+            box-shadow: 0 3px 4px rgba(0,0,0,0.1);
+            height: auto; /* Adjusts to content height */
+            align-self: flex-start; /* Prevents stretching */
+        }
+        .slider-container {
+            margin: 15px 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .slider-label {
+            margin-bottom: 5px;
+        }
+        .slider-value {
+            margin-top: 5px;
+            text-align: center;
+        }
+        #view-buttons {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        #view-buttons button {
+            padding: 5px 10px;
+            background-color: #2196F3; /* Light blue */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #view-buttons button:hover {
+            background-color: #0b7dda; /* Dark blue on hover */
+        }
+        #matrix-display {
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+        #small-matrix {
+            font-size: 100%;
+            background-color: white;
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin-top: 15px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto; /* Allow horizontal scrolling if needed */
+            max-width: 100%; /* Ensure it doesn't overflow its container */
+        }
+        .MathJax {
+            max-width: 100%;
+            overflow-x: auto;
+            font-size: 90% !important; /* Base font size for the equation */
+        }
+        
+        /* Media query for smaller screens */
+        @media screen and (max-width: 1400px) {
+            .MathJax {
+                font-size: 100% !important;
+            }
+        }
+        
+        @media screen and (max-width: 1200px) {
+            .MathJax {
+                font-size: 70% !important;
+            }
+        }
+        
+        #reset-button {
+            padding: 8px 15px;
+            background-color: #2196F3; /* Light blue */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        #reset-button:hover {
+            background-color: #0b7dda; /* Dark blue on hover */
+        }
+        
+        /* Styles for direct matrix editing */
+        .matrix-input-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .editable-matrix {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin: 0 auto;
+        }
+        
+        .editable-matrix td {
+            padding: 5px;
+            text-align: center;
+        }
+        
+        .editable-matrix input {
+            width: 95%;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        
+        #apply-matrix {
+            padding: 8px 15px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        #apply-matrix:hover {
+            background-color: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+	<div id="chrome-warning" style="display: none; background-color: #ffdd00; color: #333; text-align: center; padding: 15px; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+		<strong>⚠️ Notice:</strong> Consider switching from Google Chrome based browsers to Firefox or Safari if the code does not run properly.
+		<button id="close-warning" style="margin-left: 15px; padding: 3px 8px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
+	</div>
+
+    <div class="main-container">
+        <div class="controls-column">
+            <h2>Controls</h2>
+            
+            <div id="view-buttons">
+                <button id="view-x">View X-axis</button>
+                <button id="view-y">View Y-axis</button>
+                <button id="view-z">View Z-axis</button>
+                <button id="view-default">Default View</button>
+                <button id="toggle-axes">Hide Axes</button>
+            </div>
+            
+            <div class="sliders-container">
+                <!-- First column of sliders -->
+                <div class="sliders-column">
+                    <div class="slider-container">
+                        <span class="slider-label">\(a\):</span>
+                        <input type="range" id="a-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="a-value">0.00</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <span class="slider-label">\(q_{z}^{2}\):</span>
+                        <input type="range" id="qz2-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="qz2-value">0.00</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <span class="slider-label">\(q_{{x}^{2}-{y}^{2}}\):</span>
+                        <input type="range" id="qx2y2-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="qx2y2-value">0.00</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <span class="slider-label">\(q_{yz}\):</span>
+                        <input type="range" id="qyz-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="qyz-value">0.00</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <span class="slider-label">\(q_{xy}\):</span>
+                        <input type="range" id="qxy-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="qxy-value">0.00</span>
+                    </div>
+                </div>
+                
+                <!-- Second column of sliders -->
+                <div class="sliders-column">
+                    <div class="slider-container">
+                        <span class="slider-label">\(t_{x}\):</span>
+                        <input type="range" id="tx-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="tx-value">0.00</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <span class="slider-label">\(t_{y}\):</span>
+                        <input type="range" id="ty-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="ty-value">0.00</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <span class="slider-label">\(t_{z}\):</span>
+                        <input type="range" id="tz-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="tz-value">0.00</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <span class="slider-label">\(q_{xz}\):</span>
+                        <input type="range" id="qxz-slider" min="-10" max="10" step="0.01" value="0">
+                        <span class="slider-value" id="qxz-value">0.00</span>
+                    </div>
+                    
+                    <!-- Reset button added below the last slider -->
+                    <button id="reset-button">Reset All Sliders to 0</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="plot-column">
+            <div id="plotDiv" style="width:100%; height:600px;"></div>
+        </div>
+        
+        <div class="matrix-column">
+            <h2 style="text-align: center;">Tensor Matrix</h2>
+            <div id="matrix-display">
+                <p>The matrix will be displayed here once the visualization is loaded...</p>
+            </div>
+            
+            <!-- Addition of matrix editing interface -->
+            <div class="matrix-input-container">
+                <h3 style="text-align: center;">Edit Matrix Values</h3>
+                <table class="editable-matrix">
+                    <tr>
+                        <td><input type="number" id="m00" step="0.01" value="0" lang="en-US"></td>
+                        <td><input type="number" id="m01" step="0.01" value="0" lang="en-US"></td>
+                        <td><input type="number" id="m02" step="0.01" value="0" lang="en-US"></td>
+                    </tr>
+                    <tr>
+                        <td><input type="number" id="m10" step="0.01" value="0" lang="en-US"></td>
+                        <td><input type="number" id="m11" step="0.01" value="0" lang="en-US"></td>
+                        <td><input type="number" id="m12" step="0.01" value="0" lang="en-US"></td>
+                    </tr>
+                    <tr>
+                        <td><input type="number" id="m20" step="0.01" value="0" lang="en-US"></td>
+                        <td><input type="number" id="m21" step="0.01" value="0" lang="en-US"></td>
+                        <td><input type="number" id="m22" step="0.01" value="0" lang="en-US"></td>
+                    </tr>
+                </table>
+                <div style="text-align: center; margin-top: 10px;">
+                    <button id="apply-matrix">Apply Matrix</button>
+                </div>
+            </div>
+            
+            <div class="equation-container">
+                <h3 style="text-align: center;">Equation</h3>
+                <div id="small-matrix">
+                    \begin{bmatrix}
+                      a + \frac{1}{2}q_{x^2-y^2} - \frac{1}{2} q_{z^2} 
+                      & t_z + q_{xy} & t_y + q_{xz}\\
+                      -t_z + q_{xy} & a - \frac{1}{2}q_{x^2-y^2} - \frac{1}{2} q_{z^2}  & -t_x + q_{yz} \\
+                      -t_y + q_{xz} & t_x + q_{yz} &  a + q_{z^2}
+                    \end{bmatrix}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+	// Function to detect Google Chrome
+		function isGoogleChrome() {
+			const userAgent = navigator.userAgent.toLowerCase();
+			// Check for Chrome but exclude other Chromium-based browsers
+			return userAgent.includes('chrome') && 
+				!userAgent.includes('edg') && 
+				!userAgent.includes('edge') &&
+				!userAgent.includes('opr') && 
+				!userAgent.includes('samsung') && 
+				!userAgent.includes('brave');
+		}
+		
+		// Show warning only if using Google Chrome
+		document.addEventListener('DOMContentLoaded', function() {
+			if (isGoogleChrome()) {
+				document.getElementById('chrome-warning').style.display = 'block';
+				
+				// Allow dismissing the warning
+				document.getElementById('close-warning').addEventListener('click', function() {
+					document.getElementById('chrome-warning').style.display = 'none';
+				});
+			}
+		});
+
+        // Utility functions
+        function arange(start, stop, step = 1) {
+            return Array.from({ length: Math.ceil((stop - start) / step) }, (_, i) => start + i * step);
+        }
+
+        function linspace(start, stop, num) {
+            const step = (stop - start) / (num - 1);
+            return Array.from({ length: num }, (_, i) => start + i * step);
+        }
+
+        // Function to limit a value between -10 and 10
+        function capValue(val) {
+            return Math.max(-10, Math.min(10, val));
+        }
+
+        // Function to set up constraints on matrix input fields
+        function setupMatrixInputConstraints() {
+            // Get all matrix input fields
+            const matrixInputs = document.querySelectorAll('.editable-matrix input');
+            
+            // Add an event handler to each field
+            matrixInputs.forEach(input => {
+                // Force using decimal point via the lang attribute
+                input.lang = 'en-US';
+                
+                input.addEventListener('change', function() {
+                    // Parse the current value
+                    let value = parseFloat(this.value);
+                    
+                    // If value is not a number, set to 0
+                    if (isNaN(value)) value = 0;
+                    
+                    // Limit value between -10 and 10
+                    value = capValue(value);
+                    
+                    // Update the field with the limited value
+                    this.value = value.toFixed(2);
+                });
+            });
+        }
+
+        // Fibonacci sphere function
+        function fibonacciSphere(samples = 300) {
+            const indices = arange(0, samples);
+            const phi = Math.PI * (3 - Math.sqrt(5));
+            
+            const y = indices.map(i => 1 - (i / (samples - 1)) * 2);
+            const radius = y.map(yi => Math.sqrt(1 - yi * yi));
+            
+            const theta = indices.map(i => phi * i);
+            
+            const x = theta.map((t, i) => Math.cos(t) * radius[i]);
+            const z = theta.map((t, i) => Math.sin(t) * radius[i]);
+            
+            return indices.map(i => [x[i], y[i], z[i]]);
+        }
+
+        // Tensor matrix function
+        function tensorMatrix(a, qz2, qx2y2, qxy, qyz, qxz, tx, ty, tz) {
+            return [
+                [a + (0.5 * qx2y2) - (0.5 * qz2), tz + qxy, qxz + ty],
+                [qxy - tz, a - (0.5 * qz2) - (0.5 * qx2y2), qyz - tx],
+                [qxz - ty, tx + qyz, a + qz2]
+            ];
+        }
+
+        // Function to solve parameters from a matrix
+        function solveForParameters(matrix) {
+            // Calculate parameters using equations derived from the tensor matrix
+            const a = (matrix[0][0] + matrix[1][1] + matrix[2][2]) / 3;
+            const qz2 = matrix[2][2] - a;
+            const qx2y2 = (matrix[0][0] - a + (0.5*qz2))*2;
+            const qxy = (matrix[0][1] + matrix[1][0]) / 2;
+            const qyz = (matrix[1][2] + matrix[2][1]) / 2;
+            const qxz = (matrix[0][2] + matrix[2][0]) / 2;
+            const tz = (matrix[0][1] - matrix[1][0]) / 2;
+            const ty = (matrix[0][2] - matrix[2][0]) / 2;
+            const tx = (matrix[2][1] - matrix[1][2]) / 2;
+            
+            return { a, qz2, qx2y2, qxy, qyz, qxz, tx, ty, tz };
+        }
+
+        // Function to update the editable matrix with current values
+        function updateEditableMatrix(tensorMatrixVal) {
+            document.getElementById('m00').value = capValue(tensorMatrixVal[0][0]).toFixed(2);
+            document.getElementById('m01').value = capValue(tensorMatrixVal[0][1]).toFixed(2);
+            document.getElementById('m02').value = capValue(tensorMatrixVal[0][2]).toFixed(2);
+            document.getElementById('m10').value = capValue(tensorMatrixVal[1][0]).toFixed(2);
+            document.getElementById('m11').value = capValue(tensorMatrixVal[1][1]).toFixed(2);
+            document.getElementById('m12').value = capValue(tensorMatrixVal[1][2]).toFixed(2);
+            document.getElementById('m20').value = capValue(tensorMatrixVal[2][0]).toFixed(2);
+            document.getElementById('m21').value = capValue(tensorMatrixVal[2][1]).toFixed(2);
+            document.getElementById('m22').value = capValue(tensorMatrixVal[2][2]).toFixed(2);
+        }
+
+        // Function to read matrix values from the interface
+        function readMatrixFromInputs() {
+            return [
+                [capValue(parseFloat(document.getElementById('m00').value || 0)),
+                 capValue(parseFloat(document.getElementById('m01').value || 0)),
+                 capValue(parseFloat(document.getElementById('m02').value || 0))],
+                [capValue(parseFloat(document.getElementById('m10').value || 0)),
+                 capValue(parseFloat(document.getElementById('m11').value || 0)),
+                 capValue(parseFloat(document.getElementById('m12').value || 0))],
+                [capValue(parseFloat(document.getElementById('m20').value || 0)),
+                 capValue(parseFloat(document.getElementById('m21').value || 0)),
+                 capValue(parseFloat(document.getElementById('m22').value || 0))]
+            ];
+        }
+
+        // Function to update sliders from parameters
+        function updateSlidersFromParameters(params) {
+            // Limit values to slider range (-10 to 10)
+            const clamp = (val) => Math.max(-10, Math.min(10, val));
+            
+            document.getElementById('a-slider').value = clamp(params.a);
+            document.getElementById('qz2-slider').value = clamp(params.qz2);
+            document.getElementById('qx2y2-slider').value = clamp(params.qx2y2);
+            document.getElementById('qxy-slider').value = clamp(params.qxy);
+            document.getElementById('qyz-slider').value = clamp(params.qyz);
+            document.getElementById('qxz-slider').value = clamp(params.qxz);
+            document.getElementById('tx-slider').value = clamp(params.tx);
+            document.getElementById('ty-slider').value = clamp(params.ty);
+            document.getElementById('tz-slider').value = clamp(params.tz);
+            
+            // Update slider value displays
+            document.getElementById('a-value').textContent = clamp(params.a).toFixed(2);
+            document.getElementById('qz2-value').textContent = clamp(params.qz2).toFixed(2);
+            document.getElementById('qx2y2-value').textContent = clamp(params.qx2y2).toFixed(2);
+            document.getElementById('qxy-value').textContent = clamp(params.qxy).toFixed(2);
+            document.getElementById('qyz-value').textContent = clamp(params.qyz).toFixed(2);
+            document.getElementById('qxz-value').textContent = clamp(params.qxz).toFixed(2);
+            document.getElementById('tx-value').textContent = clamp(params.tx).toFixed(2);
+            document.getElementById('ty-value').textContent = clamp(params.ty).toFixed(2);
+            document.getElementById('tz-value').textContent = clamp(params.tz).toFixed(2);
+        }
+
+        // Matrix multiplication
+        function matrixMultiply(matrix, vectorArray) {
+            return vectorArray.map(vector => {
+                const result = [0, 0, 0];
+                for (let i = 0; i < 3; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        result[i] += matrix[i][j] * vector[j];
+                    }
+                }
+                return result;
+            });
+        }
+
+        // Vector normalization
+        function normalizeVectors(vectors) {
+            return vectors.map(v => {
+                const norm = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+                const safeDivisor = norm === 0 ? 0.01 : norm;
+                return [v[0]/safeDivisor, v[1]/safeDivisor, v[2]/safeDivisor];
+            });
+        }
+
+        // Dot product
+        function dotProduct(v1, v2) {
+            return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
+        }
+
+        // Create vector field
+        function createVectorField(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val) {
+            const tensorMatrixVal = tensorMatrix(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val);
+            
+            const points = fibonacciSphere(200);
+            const transformedVectors = matrixMultiply(tensorMatrixVal, points);
+            const unitVectors = normalizeVectors(transformedVectors);
+            
+            const factor = 1.2;
+            const arrowLength = 0.3;
+            const coneRadius = 0.15;
+            
+            const xLines = [];
+            const yLines = [];
+            const zLines = [];
+            const coneData = [];
+            
+            for (let i = 0; i < points.length; i += 2) {
+                const start = [
+                    points[i][0] * factor,
+                    points[i][1] * factor,
+                    points[i][2] * factor
+                ];
+                
+                let end = [
+                    start[0] + arrowLength * unitVectors[i][0],
+                    start[1] + arrowLength * unitVectors[i][1],
+                    start[2] + arrowLength * unitVectors[i][2]
+                ];
+                
+                if (dotProduct(unitVectors[i], start) < 0) {
+                    start[0] -= arrowLength * unitVectors[i][0];
+                    start[1] -= arrowLength * unitVectors[i][1];
+                    start[2] -= arrowLength * unitVectors[i][2];
+                    end = [
+                        start[0] + arrowLength * unitVectors[i][0],
+                        start[1] + arrowLength * unitVectors[i][1],
+                        start[2] + arrowLength * unitVectors[i][2]
+                    ];
+                }
+                
+                const color = `rgb(${Math.floor(255*(unitVectors[i][0]+1)/2)}, ${Math.floor(255*(unitVectors[i][1]+1)/2)}, ${Math.floor(255*(unitVectors[i][2]+1)/2)})`;
+                
+                xLines.push(start[0], end[0], null);
+                yLines.push(start[1], end[1], null);
+                zLines.push(start[2], end[2], null);
+                
+                const [u, v, w] = unitVectors[i];
+                coneData.push({
+                    type: 'cone',
+                    x: [end[0]],
+                    y: [end[1]],
+                    z: [end[2]],
+                    u: [u],
+                    v: [v],
+                    w: [w],
+                    sizemode: 'absolute',
+                    sizeref: coneRadius,
+                    showscale: false,
+                    colorscale: [[0, color], [1, color]]
+                });
+            }
+            
+            const arrowData = [{
+                type: 'scatter3d',
+                x: xLines,
+                y: yLines,
+                z: zLines,
+                mode: 'lines',
+                line: {width: 5, color: 'rgba(80,80,80,0.8)'},
+                showlegend: false
+            }];
+            
+            return {arrowData, coneData, tensorMatrixVal};
+        }
+
+        // Create central sphere
+        function createCentralSphere(factor = 1.0, resolution = 30) {
+            const theta = linspace(0, 2 * Math.PI, resolution);
+            const phi = linspace(0, Math.PI, resolution);
+            
+            const x_center = [];
+            const y_center = [];
+            const z_center = [];
+            
+            for (let i = 0; i < phi.length; i++) {
+                for (let j = 0; j < theta.length; j++) {
+                    x_center.push(factor * Math.sin(phi[i]) * Math.cos(theta[j]));
+                    y_center.push(factor * Math.sin(phi[i]) * Math.sin(theta[j]));
+                    z_center.push(factor * Math.cos(phi[i]));
+                }
+            }
+            
+            return {
+                type: 'mesh3d',
+                x: x_center,
+                y: y_center,
+                z: z_center,
+                color: 'white',
+                opacity: 0.4,
+                alphahull: 0,
+                showscale: false
+            };
+        }
+
+        // Add axes with arrows
+        function createAxesWithArrows(length = 1.5, width = 5, coneSize = 0.2) {
+            const colors = {x: "red", y: "green", z: "blue"};
+            const axes = {
+                x: [[0, length], [0, 0], [0, 0]],
+                y: [[0, 0], [0, length], [0, 0]],
+                z: [[0, 0], [0, 0], [0, length]]
+            };
+            
+            const traces = [];
+            
+            for (const [axis, [x, y, z]] of Object.entries(axes)) {
+                traces.push({
+                    type: 'scatter3d',
+                    x: x,
+                    y: y,
+                    z: z,
+                    mode: 'lines',
+                    line: {color: colors[axis], width: width},
+                    showlegend: false
+                });
+                
+                const u = x[1] - x[0];
+                const v = y[1] - y[0];
+                const w = z[1] - z[0];
+                
+                traces.push({
+                    type: 'cone',
+                    x: [x[1]],
+                    y: [y[1]],
+                    z: [z[1]],
+                    u: [u],
+                    v: [v],
+                    w: [w],
+                    sizemode: "absolute",
+                    sizeref: coneSize,
+                    colorscale: [[0, colors[axis]], [1, colors[axis]]],
+                    showscale: false
+                });
+                
+                traces.push({
+                    type: 'scatter3d',
+                    x: [x[1]],
+                    y: [y[1]],
+                    z: [z[1]],
+                    mode: 'text',
+                    text: [axis.toUpperCase()],
+                    textposition: "top center",
+                    textfont: {color: colors[axis], size: 16},
+                    showlegend: false
+                });
+            }
+            
+            return traces;
+        }
+
+        // Create matrix text
+        function createMatrixText(matrix) {
+            return `
+            <p>
+            \\begin{bmatrix}
+            ${matrix[0][0].toFixed(2)} & ${matrix[0][1].toFixed(2)} & ${matrix[0][2].toFixed(2)} \\\\
+            ${matrix[1][0].toFixed(2)} & ${matrix[1][1].toFixed(2)} & ${matrix[1][2].toFixed(2)} \\\\
+            ${matrix[2][0].toFixed(2)} & ${matrix[2][1].toFixed(2)} & ${matrix[2][2].toFixed(2)}
+            \\end{bmatrix}
+            </p>
+            `;
+        }
+
+        // Main function to initialize visualization
+        function initVisualization() {
+            // Toggle axes visibility state
+            let axesVisible = true;
+            
+            // Get values from all sliders
+            const params = {
+                a_val: parseFloat(document.getElementById('a-slider').value),
+                qz2_val: parseFloat(document.getElementById('qz2-slider').value),
+                qx2y2_val: parseFloat(document.getElementById('qx2y2-slider').value),
+                qxy_val: parseFloat(document.getElementById('qxy-slider').value),
+                qyz_val: parseFloat(document.getElementById('qyz-slider').value),
+                qxz_val: parseFloat(document.getElementById('qxz-slider').value),
+                tx_val: parseFloat(document.getElementById('tx-slider').value),
+                ty_val: parseFloat(document.getElementById('ty-slider').value),
+                tz_val: parseFloat(document.getElementById('tz-slider').value)
+            };
+            
+            // Create initial vector field with all parameters
+            const { arrowData, coneData, tensorMatrixVal } = createVectorField(
+                params.a_val, params.qz2_val, params.qx2y2_val, params.qxy_val, 
+                params.qyz_val, params.qxz_val, params.tx_val, params.ty_val, params.tz_val
+            );
+            
+            // Create central sphere
+            const sphere = createCentralSphere();
+            
+            // Combine data for initial plot
+            let data = [sphere];
+            data = data.concat(arrowData);
+            data = data.concat(coneData);
+            if (axesVisible) {
+                data = data.concat(createAxesWithArrows());
+            }
+            
+            // Create layout
+            const layout = {
+                title: {
+                    text: "Tensor Visualization",
+                    font: {
+                        weight: 'bold',
+                        size: 12
+                    }
+                },
+                scene: {
+                    aspectmode: 'data',
+                    camera: {eye: {x: 1., y: 1., z: 0.4}},
+                    xaxis: {visible: false},
+                    yaxis: {visible: false},
+                    zaxis: {visible: false},
+                    bgcolor: 'rgba(0,0,0,0)'
+                },
+                showlegend: false,
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: {l: 0, r: 0, t: 30, b: 0}
+            };
+            
+            // Initialize plot with data and layout
+            Plotly.newPlot('plotDiv', data, layout);
+            
+            // Update matrix display
+            document.getElementById('matrix-display').innerHTML = createMatrixText(tensorMatrixVal);
+            
+            // Update editable matrix with initial values
+            updateEditableMatrix(tensorMatrixVal);
+            
+            // Configure matrix input constraints
+            setupMatrixInputConstraints();
+            
+            // Render LaTeX
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+            
+            // Function to update plot when slider values change
+            function updatePlot() {
+                const params = {
+                    a_val: parseFloat(document.getElementById('a-slider').value),
+                    qz2_val: parseFloat(document.getElementById('qz2-slider').value),
+                    qx2y2_val: parseFloat(document.getElementById('qx2y2-slider').value),
+                    qxy_val: parseFloat(document.getElementById('qxy-slider').value),
+                    qyz_val: parseFloat(document.getElementById('qyz-slider').value),
+                    qxz_val: parseFloat(document.getElementById('qxz-slider').value),
+                    tx_val: parseFloat(document.getElementById('tx-slider').value),
+                    ty_val: parseFloat(document.getElementById('ty-slider').value),
+                    tz_val: parseFloat(document.getElementById('tz-slider').value)
+                };
+                
+                // Update slider value displays
+                document.getElementById('a-value').textContent = params.a_val.toFixed(2);
+                document.getElementById('qz2-value').textContent = params.qz2_val.toFixed(2);
+                document.getElementById('qx2y2-value').textContent = params.qx2y2_val.toFixed(2);
+                document.getElementById('qxy-value').textContent = params.qxy_val.toFixed(2);
+                document.getElementById('qyz-value').textContent = params.qyz_val.toFixed(2);
+                document.getElementById('qxz-value').textContent = params.qxz_val.toFixed(2);
+                document.getElementById('tx-value').textContent = params.tx_val.toFixed(2);
+                document.getElementById('ty-value').textContent = params.ty_val.toFixed(2);
+                document.getElementById('tz-value').textContent = params.tz_val.toFixed(2);
+                
+                // Recalculate vector field with all parameters
+                const { arrowData, coneData, tensorMatrixVal } = createVectorField(
+                    params.a_val, params.qz2_val, params.qx2y2_val, params.qxy_val,
+                    params.qyz_val, params.qxz_val, params.tx_val, params.ty_val, params.tz_val
+                );
+                
+                // Create updated data
+                let newData = [createCentralSphere()];
+                newData = newData.concat(arrowData);
+                newData = newData.concat(coneData);
+                if (axesVisible) {
+                    newData = newData.concat(createAxesWithArrows());
+                }
+                
+                // Update plot
+                Plotly.react('plotDiv', newData, layout);
+                
+                // Update matrix display
+                document.getElementById('matrix-display').innerHTML = createMatrixText(tensorMatrixVal);
+                
+                // Update editable matrix
+                updateEditableMatrix(tensorMatrixVal);
+                
+                // Render LaTeX
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+            }
+            
+            // Set up event listeners for all sliders
+            document.getElementById('a-slider').addEventListener('input', updatePlot);
+            document.getElementById('qz2-slider').addEventListener('input', updatePlot);
+            document.getElementById('qx2y2-slider').addEventListener('input', updatePlot);
+            document.getElementById('qxy-slider').addEventListener('input', updatePlot);
+            document.getElementById('qyz-slider').addEventListener('input', updatePlot);
+            document.getElementById('qxz-slider').addEventListener('input', updatePlot);
+            document.getElementById('tx-slider').addEventListener('input', updatePlot);
+            document.getElementById('ty-slider').addEventListener('input', updatePlot);
+            document.getElementById('tz-slider').addEventListener('input', updatePlot);
+            
+            // Set up view buttons
+            document.getElementById('view-x').addEventListener('click', () => {
+                Plotly.relayout('plotDiv', 'scene.camera.eye', {x: 2, y: 0, z: 0});
+            });
+            
+            document.getElementById('view-y').addEventListener('click', () => {
+                Plotly.relayout('plotDiv', 'scene.camera.eye', {x: 0, y: 2, z: 0});
+            });
+            
+            document.getElementById('view-z').addEventListener('click', () => {
+                Plotly.relayout('plotDiv', 'scene.camera.eye', {x: 0, y: 0, z: 2});
+            });
+            
+            document.getElementById('view-default').addEventListener('click', () => {
+                Plotly.relayout('plotDiv', 'scene.camera.eye', {x: 1., y: 1., z: 0.4});
+            });
+            
+            // Toggle axes visibility button
+            document.getElementById('toggle-axes').addEventListener('click', function() {
+                axesVisible = !axesVisible;
+                this.textContent = axesVisible ? "Hide Axes" : "Show Axes";
+                updatePlot();
+            });
+            
+            // Reset button functionality
+            document.getElementById('reset-button').addEventListener('click', function() {
+                // Reset all sliders to zero
+                document.getElementById('a-slider').value = 0;
+                document.getElementById('qz2-slider').value = 0;
+                document.getElementById('qx2y2-slider').value = 0;
+                document.getElementById('qxy-slider').value = 0;
+                document.getElementById('qyz-slider').value = 0;
+                document.getElementById('qxz-slider').value = 0;
+                document.getElementById('tx-slider').value = 0;
+                document.getElementById('ty-slider').value = 0;
+                document.getElementById('tz-slider').value = 0;
+                
+                // Update the visualization
+                updatePlot();
+            });
+            
+            // Apply matrix button click handler
+            document.getElementById('apply-matrix').addEventListener('click', function() {
+                // Read matrix values from inputs
+                const matrixValues = readMatrixFromInputs();
+                
+                // Solve for parameters
+                const params = solveForParameters(matrixValues);
+                
+                // Update sliders with solved parameters
+                updateSlidersFromParameters(params);
+                
+                // Update the visualization
+                updatePlot();
+            });
+        }
+        
+        // Initialize visualization when page loads
+        document.addEventListener('DOMContentLoaded', initVisualization);
+        
+        // Add resize handler for responsive matrix sizing
+        window.addEventListener('resize', function() {
+            // Force MathJax to resize
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        });
+    </script>
+</body>
+</html>
