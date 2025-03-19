@@ -787,27 +787,37 @@
             }
             
             // Create layout
-            const layout = {
-                title: {
-                    text: "",
-                    font: {
-                        weight: 'bold',
-                        size: 12
-                    }
-                },
-                scene: {
-                    aspectmode: 'data',
-                    camera: {eye: {x: 1., y: 1., z: 0.4}},
-                    xaxis: {visible: false},
-                    yaxis: {visible: false},
-                    zaxis: {visible: false},
-                    bgcolor: 'rgba(0,0,0,0)'
-                },
-                showlegend: false,
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                margin: {l: 0, r: 0, t: 30, b: 0}
-            };
+			const layout = {
+				title: {
+					text: "",
+					font: {
+						weight: 'bold',
+						size: 12
+					}
+				},
+				scene: {
+					aspectmode: 'cube', // 'cube' same scall for all axis
+					camera: {eye: {x: 1., y: 1., z: 0.4}},
+					xaxis: {
+						visible: false,
+						range: [-1.5, 1.5] 
+					},
+					yaxis: {
+						visible: false,
+						range: [-1.5, 1.5] 
+					},
+					zaxis: {
+						visible: false,
+						range: [-1.5, 1.5] 
+					},
+					bgcolor: 'rgba(0,0,0,0)'
+				},
+				showlegend: false,
+				paper_bgcolor: 'rgba(0,0,0,0)',
+				plot_bgcolor: 'rgba(0,0,0,0)',
+				margin: {l: 0, r: 0, t: 30, b: 0}
+			};
+
             
             // Initialize plot with data and layout
             // Add configuration object with cross-browser compatibility settings
@@ -952,7 +962,7 @@
                 document.getElementById('ty-slider').value = 0;
                 document.getElementById('tz-slider').value = 0;
                 // Reset points slider to default 400
-                document.getElementById('points-slider').value = 100;
+                document.getElementById('points-slider').value = 400;
                 
                 // Update the visualization
                 updatePlot();
