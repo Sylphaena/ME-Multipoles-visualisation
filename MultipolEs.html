@@ -194,8 +194,14 @@
 </head>
 <body>
 	<div id="chrome-warning" style="display: none; background-color: #ffdd00; color: #333; text-align: center; padding: 15px; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-	<strong>⚠️ Notice:</strong> Consider switching to another browser, plotly seems to not load properly.
+	<strong>⚠️ Notice:</strong> Consider switching to another browser, Plotly seems to not load properly.
 	<button id="close-warning" style="margin-left: 15px; padding: 3px 8px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
+    </div>
+    
+    <div id="browser-warning" style="display: none; background-color: #3498db; color: white; text-align: center; padding: 15px; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+        <strong>⚠️ Notice:</strong> For better performance, we recommend using Google Chrome for this application.
+        <a href="https://www.google.com/chrome/" style="color: white; text-decoration: underline; margin-left: 10px;">Download Chrome</a>
+        <button id="close-browser-warning" style="margin-left: 15px; padding: 3px 8px; background: white; color: #3498db; border: none; border-radius: 4px; cursor: pointer;">✕</button>
     </div>
     
     <div class="main-container">
@@ -333,8 +339,29 @@
     </div>
     
     <script>
+        // Function to detect if the browser is Google Chrome
+        function isGoogleChrome() {
+            const winNav = window.navigator;
+            const vendorName = winNav.vendor;
+            const isChromium = window.chrome;
+            const isOpera = typeof window.opr !== "undefined";
+            const isIEedge = winNav.userAgent.indexOf("Edg") > -1;
+            const isIOSChrome = winNav.userAgent.match("CriOS");
+            
+            return isChromium !== null 
+                && typeof isChromium !== "undefined" 
+                && vendorName === "Google Inc." 
+                && isOpera === false 
+                && isIEedge === false;
+        }
+
         // Function to check if Plotly loaded properly
         document.addEventListener('DOMContentLoaded', function() {
+            // Check browser type for performance warning
+            if (!isGoogleChrome() && localStorage.getItem('browserWarningDismissed') !== 'true') {
+                document.getElementById('browser-warning').style.display = 'block';
+            }
+            
             // Give Plotly time to load before checking
             setTimeout(function() {
                 try {
@@ -350,9 +377,15 @@
                 }
             }, 2000); // Check after 2 seconds
             
-            // Close button functionality
+            // Close button functionality for Plotly warning
             document.getElementById('close-warning').addEventListener('click', function() {
                 document.getElementById('chrome-warning').style.display = 'none';
+            });
+            
+            // Close button functionality for browser warning
+            document.getElementById('close-browser-warning').addEventListener('click', function() {
+                document.getElementById('browser-warning').style.display = 'none';
+                localStorage.setItem('browserWarningDismissed', 'true');
             });
         });
 
@@ -521,105 +554,102 @@
         }
 
         // Create vector field
-        // Create vector field
-	function createVectorField(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val, pointsCount) {
-		const tensorMatrixVal = tensorMatrix(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val);
-		
-		// Utiliser le paramètre pointsCount ou la valeur par défaut 400
-		const points = fibonacciSphere(pointsCount || 100);
-		const transformedVectors = matrixMultiply(tensorMatrixVal, points);
-		
-		// Calculer les magnitudes pour le dimensionnement
-		const magnitudes = transformedVectors.map(v => 
-			Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]));
-		
-		// Trouver la magnitude maximale pour le dimensionnement relatif
-		const maxMagnitude = Math.max(...magnitudes, 0.1); // Éviter division par zéro
-		
-		// Obtenir les vecteurs unitaires pour la direction seulement
-		const unitVectors = normalizeVectors(transformedVectors);
-		
-		const factor = 1.2;
-		const baseArrowLength = 0.3; // Longueur de base qui sera mise à l'échelle
-		const baseConeRadius = 0.15; // Taille de cône de base qui sera mise à l'échelle
-		const baseLineWidth = 5; // Largeur de base des lignes
-
-		const xLines = [];
-		const yLines = [];
-		const zLines = [];
-		const coneData = [];
-		
-		for (let i = 0; i < points.length; i += 2) {
-			const start = [
-				points[i][0] * factor,
-				points[i][1] * factor,
-				points[i][2] * factor
-			];
-			
-			// Mettre à l'échelle la longueur de la flèche en fonction de la magnitude relative au maximum
-			// Utiliser un minimum de 20% de la longueur de base pour que toutes les flèches restent visibles
-			const relMagnitude = Math.min(magnitudes[i] / 10, 1.0);
-			const scaledLength = baseArrowLength * (relMagnitude);
-			
-			let end = [
-				start[0] + scaledLength * unitVectors[i][0],
-				start[1] + scaledLength * unitVectors[i][1],
-				start[2] + scaledLength * unitVectors[i][2]
-			];
-			
-			if (dotProduct(unitVectors[i], start) < 0) {
-				start[0] -= scaledLength * unitVectors[i][0];
-				start[1] -= scaledLength * unitVectors[i][1];
-				start[2] -= scaledLength * unitVectors[i][2];
-				end = [
-					start[0] + scaledLength * unitVectors[i][0],
-					start[1] + scaledLength * unitVectors[i][1],
-					start[2] + scaledLength * unitVectors[i][2]
-				];
-			}
-			
-			// color based on direction
-			const color = `rgb(${Math.floor(255*(unitVectors[i][0]+1)/2)}, ${Math.floor(255*(unitVectors[i][1]+1)/2)}, ${Math.floor(255*(unitVectors[i][2]+1)/2)})`;
-			
-			xLines.push(start[0], end[0], null);
-			yLines.push(start[1], end[1], null);
-			zLines.push(start[2], end[2], null);
-			
-			const [u, v, w] = unitVectors[i];
-			
-			// scale for arrows
-			const scaledConeSize = baseConeRadius * (relMagnitude);
-			const scaledWidth = Math.round(baseLineWidth * (relMagnitude));
-
-			
-			coneData.push({
-				type: 'cone',
-				x: [end[0]],
-				y: [end[1]],
-				z: [end[2]],
-				u: [u],
-				v: [v],
-				w: [w],
-				sizemode: 'absolute',
-				sizeref: scaledConeSize,
-				showscale: false,
-				colorscale: [[0, color], [1, color]]
-			});
-		}
-		
-		const arrowData = [{
-			type: 'scatter3d',
-			x: xLines,
-			y: yLines,
-			z: zLines,
-			mode: 'lines',
-			line: {width: 1, color: 'rgba(80,80,80,0.8)'},
-			showlegend: false
-		}];
-		
-		return {arrowData, coneData, tensorMatrixVal};
-	}
-
+        function createVectorField(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val, pointsCount) {
+            const tensorMatrixVal = tensorMatrix(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val);
+            
+            // Use pointsCount parameter or default to 100
+            const points = fibonacciSphere(pointsCount || 100);
+            const transformedVectors = matrixMultiply(tensorMatrixVal, points);
+            
+            // Calculate magnitudes for scaling
+            const magnitudes = transformedVectors.map(v => 
+                Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]));
+            
+            // Find max magnitude for relative scaling
+            const maxMagnitude = Math.max(...magnitudes, 0.1); // Avoid division by zero
+            
+            // Get unit vectors for direction only
+            const unitVectors = normalizeVectors(transformedVectors);
+            
+            const factor = 1.2;
+            const baseArrowLength = 0.3; // Base length that will be scaled
+            const baseConeRadius = 0.15; // Base cone size that will be scaled
+            const baseLineWidth = 5; // Base line width
+            
+            const xLines = [];
+            const yLines = [];
+            const zLines = [];
+            const coneData = [];
+            
+            for (let i = 0; i < points.length; i += 2) {
+                const start = [
+                    points[i][0] * factor,
+                    points[i][1] * factor,
+                    points[i][2] * factor
+                ];
+                
+                // Scale arrow length based on magnitude relative to maximum
+                // Use minimum of 20% of base length to ensure all arrows are visible
+                const relMagnitude = Math.min(magnitudes[i] / 10, 1.0);
+                const scaledLength = baseArrowLength * (relMagnitude);
+                
+                let end = [
+                    start[0] + scaledLength * unitVectors[i][0],
+                    start[1] + scaledLength * unitVectors[i][1],
+                    start[2] + scaledLength * unitVectors[i][2]
+                ];
+                
+                if (dotProduct(unitVectors[i], start) < 0) {
+                    start[0] -= scaledLength * unitVectors[i][0];
+                    start[1] -= scaledLength * unitVectors[i][1];
+                    start[2] -= scaledLength * unitVectors[i][2];
+                    end = [
+                        start[0] + scaledLength * unitVectors[i][0],
+                        start[1] + scaledLength * unitVectors[i][1],
+                        start[2] + scaledLength * unitVectors[i][2]
+                    ];
+                }
+                
+                // Color based on direction
+                const color = `rgb(${Math.floor(255*(unitVectors[i][0]+1)/2)}, ${Math.floor(255*(unitVectors[i][1]+1)/2)}, ${Math.floor(255*(unitVectors[i][2]+1)/2)})`;
+                
+                xLines.push(start[0], end[0], null);
+                yLines.push(start[1], end[1], null);
+                zLines.push(start[2], end[2], null);
+                
+                const [u, v, w] = unitVectors[i];
+                
+                // Scale cone size proportionally to magnitude
+                const scaledConeSize = baseConeRadius * (relMagnitude);
+                const scaledWidth = Math.round(baseLineWidth * (relMagnitude));
+                
+                coneData.push({
+                    type: 'cone',
+                    x: [end[0]],
+                    y: [end[1]],
+                    z: [end[2]],
+                    u: [u],
+                    v: [v],
+                    w: [w],
+                    sizemode: 'absolute',
+                    sizeref: scaledConeSize,
+                    showscale: false,
+                    colorscale: [[0, color], [1, color]]
+                });
+            }
+            
+            const arrowData = [{
+                type: 'scatter3d',
+                x: xLines,
+                y: yLines,
+                z: zLines,
+                mode: 'lines',
+                line: {width: 1, color: 'rgba(80,80,80,0.8)'},
+                showlegend: false
+            }];
+            
+            return {arrowData, coneData, tensorMatrixVal};
+        }
 
         // Create central sphere
         function createCentralSphere(factor = 1.0, resolution = 30) {
@@ -922,7 +952,7 @@
                 document.getElementById('ty-slider').value = 0;
                 document.getElementById('tz-slider').value = 0;
                 // Reset points slider to default 400
-                document.getElementById('points-slider').value = 400;
+                document.getElementById('points-slider').value = 100;
                 
                 // Update the visualization
                 updatePlot();
