@@ -521,81 +521,105 @@
         }
 
         // Create vector field
-        function createVectorField(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val, pointsCount) {
-            const tensorMatrixVal = tensorMatrix(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val);
-            
-            // Use pointsCount parameter or default to 400
-            const points = fibonacciSphere(pointsCount || 400);
-            const transformedVectors = matrixMultiply(tensorMatrixVal, points);
-            const unitVectors = normalizeVectors(transformedVectors);
-            
-            const factor = 1.2;
-            const arrowLength = 0.3;
-            const coneRadius = 0.15;
-            
-            const xLines = [];
-            const yLines = [];
-            const zLines = [];
-            const coneData = [];
-            
-            for (let i = 0; i < points.length; i += 2) {
-                const start = [
-                    points[i][0] * factor,
-                    points[i][1] * factor,
-                    points[i][2] * factor
-                ];
-                
-                let end = [
-                    start[0] + arrowLength * unitVectors[i][0],
-                    start[1] + arrowLength * unitVectors[i][1],
-                    start[2] + arrowLength * unitVectors[i][2]
-                ];
-                
-                if (dotProduct(unitVectors[i], start) < 0) {
-                    start[0] -= arrowLength * unitVectors[i][0];
-                    start[1] -= arrowLength * unitVectors[i][1];
-                    start[2] -= arrowLength * unitVectors[i][2];
-                    end = [
-                        start[0] + arrowLength * unitVectors[i][0],
-                        start[1] + arrowLength * unitVectors[i][1],
-                        start[2] + arrowLength * unitVectors[i][2]
-                    ];
-                }
-                
-                const color = `rgb(${Math.floor(255*(unitVectors[i][0]+1)/2)}, ${Math.floor(255*(unitVectors[i][1]+1)/2)}, ${Math.floor(255*(unitVectors[i][2]+1)/2)})`;
-                
-                xLines.push(start[0], end[0], null);
-                yLines.push(start[1], end[1], null);
-                zLines.push(start[2], end[2], null);
-                
-                const [u, v, w] = unitVectors[i];
-                coneData.push({
-                    type: 'cone',
-                    x: [end[0]],
-                    y: [end[1]],
-                    z: [end[2]],
-                    u: [u],
-                    v: [v],
-                    w: [w],
-                    sizemode: 'absolute',
-                    sizeref: coneRadius,
-                    showscale: false,
-                    colorscale: [[0, color], [1, color]]
-                });
-            }
-            
-            const arrowData = [{
-                type: 'scatter3d',
-                x: xLines,
-                y: yLines,
-                z: zLines,
-                mode: 'lines',
-                line: {width: 5, color: 'rgba(80,80,80,0.8)'},
-                showlegend: false
-            }];
-            
-            return {arrowData, coneData, tensorMatrixVal};
-        }
+        // Create vector field
+	function createVectorField(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val, pointsCount) {
+		const tensorMatrixVal = tensorMatrix(a_val, qz2_val, qx2y2_val, qxy_val, qyz_val, qxz_val, tx_val, ty_val, tz_val);
+		
+		// Utiliser le paramètre pointsCount ou la valeur par défaut 400
+		const points = fibonacciSphere(pointsCount || 100);
+		const transformedVectors = matrixMultiply(tensorMatrixVal, points);
+		
+		// Calculer les magnitudes pour le dimensionnement
+		const magnitudes = transformedVectors.map(v => 
+			Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]));
+		
+		// Trouver la magnitude maximale pour le dimensionnement relatif
+		const maxMagnitude = Math.max(...magnitudes, 0.1); // Éviter division par zéro
+		
+		// Obtenir les vecteurs unitaires pour la direction seulement
+		const unitVectors = normalizeVectors(transformedVectors);
+		
+		const factor = 1.2;
+		const baseArrowLength = 0.3; // Longueur de base qui sera mise à l'échelle
+		const baseConeRadius = 0.15; // Taille de cône de base qui sera mise à l'échelle
+		const baseLineWidth = 5; // Largeur de base des lignes
+
+		const xLines = [];
+		const yLines = [];
+		const zLines = [];
+		const coneData = [];
+		
+		for (let i = 0; i < points.length; i += 2) {
+			const start = [
+				points[i][0] * factor,
+				points[i][1] * factor,
+				points[i][2] * factor
+			];
+			
+			// Mettre à l'échelle la longueur de la flèche en fonction de la magnitude relative au maximum
+			// Utiliser un minimum de 20% de la longueur de base pour que toutes les flèches restent visibles
+			const relMagnitude = Math.min(magnitudes[i] / 10, 1.0);
+			const scaledLength = baseArrowLength * (relMagnitude);
+			
+			let end = [
+				start[0] + scaledLength * unitVectors[i][0],
+				start[1] + scaledLength * unitVectors[i][1],
+				start[2] + scaledLength * unitVectors[i][2]
+			];
+			
+			if (dotProduct(unitVectors[i], start) < 0) {
+				start[0] -= scaledLength * unitVectors[i][0];
+				start[1] -= scaledLength * unitVectors[i][1];
+				start[2] -= scaledLength * unitVectors[i][2];
+				end = [
+					start[0] + scaledLength * unitVectors[i][0],
+					start[1] + scaledLength * unitVectors[i][1],
+					start[2] + scaledLength * unitVectors[i][2]
+				];
+			}
+			
+			// color based on direction
+			const color = `rgb(${Math.floor(255*(unitVectors[i][0]+1)/2)}, ${Math.floor(255*(unitVectors[i][1]+1)/2)}, ${Math.floor(255*(unitVectors[i][2]+1)/2)})`;
+			
+			xLines.push(start[0], end[0], null);
+			yLines.push(start[1], end[1], null);
+			zLines.push(start[2], end[2], null);
+			
+			const [u, v, w] = unitVectors[i];
+			
+			// scale for arrows
+			const scaledConeSize = baseConeRadius * (relMagnitude);
+			const scaledWidth = Math.round(baseLineWidth * (relMagnitude));
+
+			
+			coneData.push({
+				type: 'cone',
+				x: [end[0]],
+				y: [end[1]],
+				z: [end[2]],
+				u: [u],
+				v: [v],
+				w: [w],
+				sizemode: 'absolute',
+				sizeref: scaledConeSize,
+				showscale: false,
+				colorscale: [[0, color], [1, color]]
+			});
+		}
+		
+		const arrowData = [{
+			type: 'scatter3d',
+			x: xLines,
+			y: yLines,
+			z: zLines,
+			mode: 'lines',
+			line: {width: 1, color: 'rgba(80,80,80,0.8)'},
+			showlegend: false
+		}];
+		
+		return {arrowData, coneData, tensorMatrixVal};
+	}
+
 
         // Create central sphere
         function createCentralSphere(factor = 1.0, resolution = 30) {
